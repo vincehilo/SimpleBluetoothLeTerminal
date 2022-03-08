@@ -28,6 +28,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
 
     private enum Connected { False, Pending, True }
@@ -44,6 +48,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private boolean hexEnabled = false;
     private boolean pendingNewline = false;
     private String newline = TextUtil.newline_crlf;
+    private ScheduledExecutorService reconnectTimer = Executors.newSingleThreadScheduledExecutor();
 
     /*
      * Lifecycle
@@ -193,6 +198,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private void disconnect() {
         connected = Connected.False;
         service.disconnect();
+        startReconnect();
     }
 
     private void send(String str) {
@@ -224,7 +230,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     private void receive(byte[] data) {
         if(hexEnabled) {
-            receiveText.append(TextUtil.toHexString(data) + '\n');
+            receiveText.setText(TextUtil.toHexString(data) + '\n');
         } else {
             String msg = new String(data);
             if(newline.equals(TextUtil.newline_crlf) && msg.length() > 0) {
@@ -238,7 +244,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 }
                 pendingNewline = msg.charAt(msg.length() - 1) == '\r';
             }
-            receiveText.append(TextUtil.toCaretString(msg, newline.length() != 0));
+            receiveText.setText(TextUtil.toCaretString(msg, newline.length() != 0));
+//            Intent bcIntent = new Intent();
+//            bcIntent.setAction("android.intent.ACTION_DECODE_DATA");
+//            bcIntent.setFlags(Intent.FLAG_FROM_BACKGROUND);
+//            bcIntent.putExtra("barcode_string", data);
+//            getActivity().getApplicationContext().sendBroadcast(bcIntent);
         }
     }
 
@@ -255,6 +266,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onSerialConnect() {
         status("connected");
         connected = Connected.True;
+        stopReconnect();
     }
 
     @Override
@@ -274,4 +286,24 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         disconnect();
     }
 
+    public void startReconnect() {
+        if(reconnectTimer.isShutdown()) {
+            reconnectTimer = Executors.newSingleThreadScheduledExecutor();
+
+            reconnectTimer.scheduleAtFixedRate(new Runnable() {
+                @Override
+                public void run() {
+                    if (connected != Connected.True) {
+                        connect();
+                    }
+                }
+            }, 0, 10, TimeUnit.SECONDS);
+        }
+    }
+
+    public void stopReconnect() {
+        if(!reconnectTimer.isShutdown()) {
+            reconnectTimer.shutdownNow();
+        }
+    }
 }

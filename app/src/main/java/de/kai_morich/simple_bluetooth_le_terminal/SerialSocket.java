@@ -58,6 +58,10 @@ class SerialSocket extends BluetoothGattCallback {
     private static final UUID BLUETOOTH_LE_TIO_CHAR_TX_CREDITS  = UUID.fromString("00000003-0000-1000-8000-008025000000"); // W
     private static final UUID BLUETOOTH_LE_TIO_CHAR_RX_CREDITS  = UUID.fromString("00000004-0000-1000-8000-008025000000"); // I
 
+    private static final UUID BLUETOOTH_LE_ESP32                = UUID.fromString("0000feea-0000-1000-8000-00805f9b34fb");
+    private static final UUID BLUETOOTH_LE_ESP32_R              = UUID.fromString("00002aa1-0000-1000-8000-00805f9b34fb");
+    private static final UUID BLUETOOTH_LE_ESP32_W              = UUID.fromString("00002aa2-0000-1000-8000-00805f9b34fb");
+
     private static final int MAX_MTU = 512; // BLE standard does not limit, some BLE 4.2 devices support 251, various source say that Android has max 512
     private static final int DEFAULT_MTU = 23;
     private static final String TAG = "SerialSocket";
@@ -226,6 +230,8 @@ class SerialSocket extends BluetoothGattCallback {
                 delegate = new NrfDelegate();
             if (gattService.getUuid().equals(BLUETOOTH_LE_TIO_SERVICE))
                 delegate = new TelitDelegate();
+            if (gattService.getUuid().equals(BLUETOOTH_LE_ESP32))
+                delegate = new ESP32Delegate();
 
             if(delegate != null) {
                 sync = delegate.connectCharacteristics(gattService);
@@ -316,7 +322,7 @@ class SerialSocket extends BluetoothGattCallback {
                 // before confirmed by this method, so receive data can be shown before device is shown as 'Connected'.
                 onSerialConnect();
                 connected = true;
-                Log.d(TAG, "connected");
+                Log.d(TAG, "connected--");
             }
         }
     }
@@ -334,7 +340,12 @@ class SerialSocket extends BluetoothGattCallback {
         if(characteristic == readCharacteristic) { // NOPMD - test object identity
             byte[] data = readCharacteristic.getValue();
             onSerialRead(data);
-            Log.d(TAG,"read, len="+data.length);
+            Intent bcIntent = new Intent();
+            bcIntent.setAction("android.intent.ACTION_DECODE_DATA");
+            bcIntent.setFlags(Intent.FLAG_FROM_BACKGROUND);
+            bcIntent.putExtra("barcode_string", new String(data));
+            context.sendBroadcast(bcIntent);
+            Log.d(TAG,"read--, len="+data.length);
         }
     }
 
@@ -445,6 +456,16 @@ class SerialSocket extends BluetoothGattCallback {
     /**
      * device delegates
      */
+
+    private class ESP32Delegate extends DeviceDelegate {
+        @Override
+        boolean connectCharacteristics(BluetoothGattService gattService) {
+            Log.d(TAG, "service cc254x uart");
+            readCharacteristic = gattService.getCharacteristic(BLUETOOTH_LE_ESP32_R);
+            writeCharacteristic = gattService.getCharacteristic(BLUETOOTH_LE_ESP32_W);
+            return true;
+        }
+    }
 
     private class Cc245XDelegate extends DeviceDelegate {
         @Override
