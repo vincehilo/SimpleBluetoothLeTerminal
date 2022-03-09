@@ -82,6 +82,8 @@ class SerialSocket extends BluetoothGattCallback {
     private boolean canceled;
     private boolean connected;
     private int payloadSize = DEFAULT_MTU-3;
+    //For collecting fragments
+    private byte[] rcvString;
 
     SerialSocket(Context context, BluetoothDevice device) {
         if(context instanceof Activity)
@@ -111,6 +113,7 @@ class SerialSocket extends BluetoothGattCallback {
     String getName() {
         return device.getName() != null ? device.getName() : device.getAddress();
     }
+    String getAddress() { return device.getAddress(); }
 
     void disconnect() {
         Log.d(TAG, "disconnect");
@@ -338,7 +341,12 @@ class SerialSocket extends BluetoothGattCallback {
         if(canceled)
             return;
         if(characteristic == readCharacteristic) { // NOPMD - test object identity
+            //For scanning we want to find an appropriate suffix character.
+            //Prior to that we should concatenate data until we can send the completed string.
             byte[] data = readCharacteristic.getValue();
+            if(data[data.length-1] == '\r') {
+
+            }
             onSerialRead(data);
             Intent bcIntent = new Intent();
             bcIntent.setAction("android.intent.ACTION_DECODE_DATA");
@@ -460,7 +468,7 @@ class SerialSocket extends BluetoothGattCallback {
     private class ESP32Delegate extends DeviceDelegate {
         @Override
         boolean connectCharacteristics(BluetoothGattService gattService) {
-            Log.d(TAG, "service cc254x uart");
+            Log.d(TAG, "service esp32 uart");
             readCharacteristic = gattService.getCharacteristic(BLUETOOTH_LE_ESP32_R);
             writeCharacteristic = gattService.getCharacteristic(BLUETOOTH_LE_ESP32_W);
             return true;
@@ -653,7 +661,6 @@ class SerialSocket extends BluetoothGattCallback {
                 }
             }
         }
-
     }
 
 }

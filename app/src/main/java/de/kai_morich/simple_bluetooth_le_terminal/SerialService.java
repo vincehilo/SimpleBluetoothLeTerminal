@@ -5,13 +5,17 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
@@ -47,6 +51,16 @@ public class SerialService extends Service implements SerialListener {
     private SerialSocket socket;
     private SerialListener listener;
     private boolean connected;
+    private static final String TAG = "SerialService";
+
+    private BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+            if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
+                Log.d(TAG, "onReceive: Screen turned on!");
+            }
+        }
+    };
 
     /**
      * Lifecylce
@@ -59,9 +73,17 @@ public class SerialService extends Service implements SerialListener {
     }
 
     @Override
+    public void onCreate() {
+        IntentFilter screenIF = new IntentFilter();
+        screenIF.addAction(Intent.ACTION_SCREEN_ON);
+        registerReceiver(mReceiver, screenIF);
+    }
+
+    @Override
     public void onDestroy() {
         cancelNotification();
         disconnect();
+        unregisterReceiver(mReceiver);
         super.onDestroy();
     }
 
@@ -183,8 +205,17 @@ public class SerialService extends Service implements SerialListener {
                 } else {
                     queue2.add(new QueueItem(QueueType.Connect, null, null));
                 }
+                //Write last connection ID
+
             }
         }
+    }
+
+    public void saveLastID() {
+        SharedPreferences sharedPref = getApplication().getSharedPreferences("scanner_mac", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putString("scanner_mac", socket.getAddress());
+        editor.apply();
     }
 
     public void onSerialConnectError(Exception e) {

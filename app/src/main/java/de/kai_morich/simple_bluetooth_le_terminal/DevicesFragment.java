@@ -140,6 +140,7 @@ public class DevicesFragment extends ListFragment {
             setEmptyText("<use SCAN to refresh devices>");
             if (menu != null)
                 menu.findItem(R.id.ble_scan).setEnabled(true);
+
         }
     }
 

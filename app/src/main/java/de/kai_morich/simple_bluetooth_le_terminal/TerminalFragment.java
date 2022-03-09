@@ -198,7 +198,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private void disconnect() {
         connected = Connected.False;
         service.disconnect();
-        startReconnect();
+        //Terminate the fragment, attempt scan or reconnect from DevicesFragment
+        try {
+            getActivity().onBackPressed();
+        } catch (Exception e) {
+            //ignore
+        }
     }
 
     private void send(String str) {
@@ -245,11 +250,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 pendingNewline = msg.charAt(msg.length() - 1) == '\r';
             }
             receiveText.setText(TextUtil.toCaretString(msg, newline.length() != 0));
-//            Intent bcIntent = new Intent();
-//            bcIntent.setAction("android.intent.ACTION_DECODE_DATA");
-//            bcIntent.setFlags(Intent.FLAG_FROM_BACKGROUND);
-//            bcIntent.putExtra("barcode_string", data);
-//            getActivity().getApplicationContext().sendBroadcast(bcIntent);
         }
     }
 
@@ -266,7 +266,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onSerialConnect() {
         status("connected");
         connected = Connected.True;
-        stopReconnect();
     }
 
     @Override
@@ -284,26 +283,5 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onSerialIoError(Exception e) {
         status("connection lost: " + e.getMessage());
         disconnect();
-    }
-
-    public void startReconnect() {
-        if(reconnectTimer.isShutdown()) {
-            reconnectTimer = Executors.newSingleThreadScheduledExecutor();
-
-            reconnectTimer.scheduleAtFixedRate(new Runnable() {
-                @Override
-                public void run() {
-                    if (connected != Connected.True) {
-                        connect();
-                    }
-                }
-            }, 0, 10, TimeUnit.SECONDS);
-        }
-    }
-
-    public void stopReconnect() {
-        if(!reconnectTimer.isShutdown()) {
-            reconnectTimer.shutdownNow();
-        }
     }
 }
