@@ -200,7 +200,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         service.disconnect();
         //Terminate the fragment, attempt scan or reconnect from DevicesFragment
         try {
-            getActivity().onBackPressed();
+            //getActivity().onBackPressed();
         } catch (Exception e) {
             //ignore
         }
@@ -264,7 +264,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
      */
     @Override
     public void onSerialConnect() {
-        status("connected");
+        status("connected to device");
         connected = Connected.True;
     }
 

@@ -15,6 +15,7 @@ import android.content.IntentFilter;
 import android.os.Build;
 import android.util.Log;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
@@ -82,8 +83,7 @@ class SerialSocket extends BluetoothGattCallback {
     private boolean canceled;
     private boolean connected;
     private int payloadSize = DEFAULT_MTU-3;
-    //For collecting fragments
-    private byte[] rcvString;
+    private ByteArrayOutputStream serialData = new ByteArrayOutputStream();
 
     SerialSocket(Context context, BluetoothDevice device) {
         if(context instanceof Activity)
@@ -234,7 +234,6 @@ class SerialSocket extends BluetoothGattCallback {
             if (gattService.getUuid().equals(BLUETOOTH_LE_TIO_SERVICE))
                 delegate = new TelitDelegate();
             if (gattService.getUuid().equals(BLUETOOTH_LE_ESP32))
-                delegate = new ESP32Delegate();
 
             if(delegate != null) {
                 sync = delegate.connectCharacteristics(gattService);
@@ -325,7 +324,7 @@ class SerialSocket extends BluetoothGattCallback {
                 // before confirmed by this method, so receive data can be shown before device is shown as 'Connected'.
                 onSerialConnect();
                 connected = true;
-                Log.d(TAG, "connected--");
+                Log.d(TAG, "connected");
             }
         }
     }
@@ -341,19 +340,21 @@ class SerialSocket extends BluetoothGattCallback {
         if(canceled)
             return;
         if(characteristic == readCharacteristic) { // NOPMD - test object identity
-            //For scanning we want to find an appropriate suffix character.
-            //Prior to that we should concatenate data until we can send the completed string.
             byte[] data = readCharacteristic.getValue();
-            if(data[data.length-1] == '\r') {
-
-            }
             onSerialRead(data);
-            Intent bcIntent = new Intent();
-            bcIntent.setAction("android.intent.ACTION_DECODE_DATA");
-            bcIntent.setFlags(Intent.FLAG_FROM_BACKGROUND);
-            bcIntent.putExtra("barcode_string", new String(data));
-            context.sendBroadcast(bcIntent);
-            Log.d(TAG,"read--, len="+data.length);
+
+            serialData.write(data, 0, data.length);
+            if (data[data.length - 1] == '\r' || data[data.length - 1] == '\n' || data[data.length - 1] == '\t') {
+                //listener.onSerialRead(serialData.toByteArray());
+                Intent bcIntent = new Intent();
+                bcIntent.setAction("android.intent.ACTION_DECODE_DATA");
+                bcIntent.setFlags(Intent.FLAG_FROM_BACKGROUND);
+                bcIntent.putExtra("barcode_string", new String(serialData.toByteArray()));
+                context.sendBroadcast(bcIntent);
+                serialData = new ByteArrayOutputStream();
+            }
+
+            Log.d(TAG, "read--, len=" + data.length);
         }
     }
 

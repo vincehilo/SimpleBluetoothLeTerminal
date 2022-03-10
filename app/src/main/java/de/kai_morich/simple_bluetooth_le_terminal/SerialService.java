@@ -20,6 +20,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -53,7 +54,7 @@ public class SerialService extends Service implements SerialListener {
     private boolean connected;
     private static final String TAG = "SerialService";
 
-    private BroadcastReceiver mReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(final Context context, final Intent intent) {
             if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
@@ -61,7 +62,6 @@ public class SerialService extends Service implements SerialListener {
             }
         }
     };
-
     /**
      * Lifecylce
      */
@@ -206,7 +206,7 @@ public class SerialService extends Service implements SerialListener {
                     queue2.add(new QueueItem(QueueType.Connect, null, null));
                 }
                 //Write last connection ID
-
+                saveLastID();
             }
         }
     }
