@@ -234,6 +234,7 @@ class SerialSocket extends BluetoothGattCallback {
             if (gattService.getUuid().equals(BLUETOOTH_LE_TIO_SERVICE))
                 delegate = new TelitDelegate();
             if (gattService.getUuid().equals(BLUETOOTH_LE_ESP32))
+                delegate = new ESP32Delegate();
 
             if(delegate != null) {
                 sync = delegate.connectCharacteristics(gattService);
